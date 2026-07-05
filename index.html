@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PaperShelf</title>
+  <meta name="theme-color" content="#6e57e0">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PaperShelf">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #191c26;
+      --accent: #6e57e0;
+      --accent-hover: #7d68ea;
+      --text: #e7e9f0;
+      --muted: #9aa0b4;
+      --error: #ff6b7a;
+      --success: #5bd6a0;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #auth-view {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) 1.25rem env(safe-area-inset-bottom);
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 2rem 1.75rem;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      text-align: center;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.35rem; }
+    p.sub { color: var(--muted); margin: 0 0 1.75rem; font-size: 0.92rem; line-height: 1.5; }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 0.85rem 1.25rem;
+      width: 100%;
+      color: #fff;
+      background: var(--accent);
+      transition: background 0.15s ease;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: 0.55; cursor: default; }
+    button.secondary {
+      background: transparent;
+      border: 1px solid #333849;
+      color: var(--muted);
+      margin-top: 0.75rem;
+    }
+    button.secondary:hover:not(:disabled) { background: #21252f; }
+    .status { color: var(--muted); font-size: 0.9rem; min-height: 1.2em; margin-top: 0.5rem; }
+    .status.error { color: var(--error); }
+    .status.success { color: var(--success); }
+    .hidden { display: none !important; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 1.25rem; line-height: 1.6; text-align: left; }
+    .hint p { margin: 0 0 0.4rem; }
+    .hint ol { margin: 0; padding-left: 1.25rem; }
+    .hint li { margin-bottom: 0.3rem; }
+    code { background: var(--bg); padding: 0.1em 0.35em; border-radius: 5px; }
+
+    /* ---- LIST screen ---- */
+    #screen-list {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .list-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: calc(env(safe-area-inset-top) + 0.85rem) 1rem 0.85rem;
+      background: rgba(15, 17, 23, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #21252f;
+    }
+    .list-header .title { font-size: 1.1rem; font-weight: 700; margin: 0; }
+    .list-header .who { color: var(--muted); font-size: 0.82rem; margin-right: auto; }
+    .icon-btn {
+      width: auto;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.85rem;
+      background: transparent;
+      border: 1px solid #333849;
+      color: var(--text);
+      border-radius: 10px;
+    }
+    .icon-btn:hover:not(:disabled) { background: #21252f; }
+    .list-body {
+      flex: 1;
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 1rem 1rem calc(env(safe-area-inset-bottom) + 2rem);
+    }
+    .tag-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .chip {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid #333849;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      width: auto;
+    }
+    .chip:hover:not(:disabled) { background: #21252f; }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .paper-card {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid #21252f;
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+      transition: border-color 0.15s ease, transform 0.05s ease;
+    }
+    .paper-card:hover { border-color: #3a3f52; }
+    .paper-card:active { transform: scale(0.995); }
+    .paper-card h2 {
+      font-size: 1.02rem;
+      line-height: 1.4;
+      margin: 0 0 0.4rem;
+    }
+    .paper-card .authors {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin: 0 0 0.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .paper-card .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.85rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .paper-card .meta .venue { color: var(--accent); font-weight: 600; }
+    .paper-card .pills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .pill {
+      font-size: 0.72rem;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      background: #262a37;
+      color: #c3c8db;
+    }
+    .paper-card.broken { border-style: dashed; border-color: var(--error); }
+    .paper-card.broken .authors { color: var(--error); }
+    .list-message {
+      text-align: center;
+      color: var(--muted);
+      padding: 3rem 1rem;
+      font-size: 0.95rem;
+    }
+    .list-message.error { color: var(--error); }
+    .list-message button { max-width: 240px; margin: 1rem auto 0; }
+
+    /* ---- DETAIL screen ---- */
+    #screen-detail {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .detail-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: calc(env(safe-area-inset-top) + 0.85rem) 1rem 0.85rem;
+      background: rgba(15, 17, 23, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #21252f;
+    }
+    .detail-header .back { width: auto; }
+    .detail-body {
+      flex: 1;
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem calc(env(safe-area-inset-bottom) + 3rem);
+    }
+    .detail-title { font-size: 1.3rem; line-height: 1.4; margin: 0 0 0.6rem; }
+    .detail-authors { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; line-height: 1.5; }
+    .detail-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 0.85rem; font-size: 0.82rem; color: var(--muted); align-items: center; }
+    .detail-meta .venue { color: var(--accent); font-weight: 600; }
+    .detail-meta .pill { font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #262a37; color: #c3c8db; }
+    .pdf-btn { width: auto; margin: 1rem 0 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.9rem; }
+
+    details.section {
+      border: 1px solid #21252f;
+      border-radius: 12px;
+      margin-top: 0.75rem;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    details.section > summary {
+      cursor: pointer;
+      padding: 0.85rem 1.1rem;
+      font-weight: 600;
+      font-size: 0.98rem;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    details.section > summary::-webkit-details-marker { display: none; }
+    details.section > summary::after { content: "＋"; color: var(--muted); font-weight: 400; }
+    details.section[open] > summary::after { content: "－"; }
+    .section-content { padding: 0 1.1rem 1.1rem; line-height: 1.75; }
+    .section-content p { margin: 0 0 0.8rem; }
+    .section-content ul { margin: 0 0 0.8rem; padding-left: 1.3rem; }
+    .section-content li { margin-bottom: 0.35rem; }
+    .section-content blockquote {
+      margin: 0 0 0.8rem;
+      padding: 0.4rem 0.9rem;
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+    }
+    .section-content strong { color: #fff; }
+    .section-content code { font-size: 0.9em; }
+
+    .bibtex-pre {
+      background: var(--bg);
+      border: 1px solid #21252f;
+      border-radius: 10px;
+      padding: 0.9rem;
+      overflow-x: auto;
+      font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+    .copy-btn { width: auto; padding: 0.4rem 0.9rem; font-size: 0.8rem; }
+
+    .memo-block {
+      margin-top: 1.25rem;
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      background: var(--surface);
+    }
+    .memo-block h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+    .memo-block textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid #333849;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font: inherit;
+      line-height: 1.6;
+    }
+    .memo-block .save-btn { width: auto; margin-top: 0.75rem; padding: 0.6rem 1.4rem; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
+      transform: translateX(-50%);
+      background: #262a37;
+      color: var(--text);
+      padding: 0.7rem 1.2rem;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #3a1d24; color: var(--error); }
+    .toast.success { background: #1d3a2d; color: var(--success); }
+
+    /* ---- SETTINGS screen ---- */
+    #screen-settings {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid #21252f;
+    }
+    .settings-row .label { color: var(--muted); font-size: 0.9rem; }
+    .settings-row .value { font-weight: 600; word-break: break-all; text-align: right; }
+    .settings-field { margin: 1.5rem 0; text-align: left; }
+    .settings-field label { display: block; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.45rem; }
+    .settings-field input {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid #333849;
+      border-radius: 10px;
+      padding: 0.7rem;
+      font: inherit;
+    }
+    .settings-field .save-btn { width: auto; margin-top: 0.75rem; padding: 0.6rem 1.4rem; }
+    .btn-danger {
+      margin-top: 2rem;
+      background: transparent;
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(255, 107, 122, 0.12); }
+
+    /* ---- Modal ---- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      z-index: 30;
+    }
+    .modal-overlay.hidden { display: none !important; }
+    .modal { max-width: 420px; }
+  </style>
+</head>
+<body>
+  <div id="auth-view">
+   <div class="card">
+    <!-- AUTH: PAT input -->
+    <section id="screen-login">
+      <h1>PaperShelf</h1>
+      <p class="sub">fine-grained Personal Access Token を貼り付けて接続します。</p>
+      <div class="settings-field">
+        <label for="pat-input">Personal Access Token</label>
+        <input id="pat-input" type="password" autocapitalize="off" autocorrect="off"
+               spellcheck="false" placeholder="github_pat_...">
+      </div>
+      <button id="btn-connect">接続</button>
+      <p id="login-status" class="status"></p>
+      <div class="hint">
+        <p>fine-grained PAT の作り方:</p>
+        <ol>
+          <li>GitHub → Settings → Developer settings → Fine-grained tokens</li>
+          <li>「Generate new token」を押す</li>
+          <li>Repository access → Only select repositories で <code>research-paper-notes</code> を選択</li>
+          <li>Permissions → Contents を <strong>Read and write</strong> に設定</li>
+          <li>「Generate token」で発行し、表示された値を上の欄に貼り付け</li>
+        </ol>
+      </div>
+    </section>
+
+   </div>
+  </div>
+
+  <!-- LIST: paper list (post-login landing) -->
+  <div id="screen-list" class="hidden">
+    <header class="list-header">
+      <p class="title">PaperShelf</p>
+      <span class="who" id="list-who"></span>
+      <button class="icon-btn" id="btn-refresh">更新</button>
+      <button class="icon-btn" id="btn-settings">設定</button>
+    </header>
+    <div class="list-body">
+      <div class="tag-filter hidden" id="tag-filter"></div>
+      <div id="list-content"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL: single paper -->
+  <div id="screen-detail" class="hidden">
+    <header class="detail-header">
+      <button class="icon-btn back" id="btn-back">← 一覧</button>
+    </header>
+    <div class="detail-body" id="detail-body"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="screen-settings" class="hidden">
+    <header class="detail-header">
+      <button class="icon-btn back" id="btn-settings-back">← 一覧</button>
+    </header>
+    <div class="detail-body">
+      <h1 class="detail-title">設定</h1>
+      <div class="settings-row">
+        <span class="label">GitHubアカウント</span>
+        <span class="value" id="settings-user"></span>
+      </div>
+      <div class="settings-field">
+        <label for="settings-repo">リポジトリ (owner/repo)</label>
+        <input id="settings-repo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="owner/repo">
+        <button class="save-btn" id="btn-repo-save">保存</button>
+      </div>
+      <div class="settings-field">
+        <label for="settings-token" id="settings-token-label">トークンを更新</label>
+        <input id="settings-token" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="github_pat_...">
+        <button class="save-btn" id="btn-token-save">更新</button>
+      </div>
+      <button class="btn-danger" id="btn-settings-logout">ログアウト</button>
+    </div>
+  </div>
+
+  <!-- Token-expired modal (memo-save path) -->
+  <div class="modal-overlay hidden" id="token-modal">
+    <div class="card modal">
+      <h1>トークンが失効しました</h1>
+      <p class="sub">新しい fine-grained PAT を入力すると、編集中のメモをそのまま保存できます。</p>
+      <div class="settings-field">
+        <label for="modal-token">Personal Access Token</label>
+        <input id="modal-token" type="password" autocapitalize="off" autocorrect="off"
+               spellcheck="false" placeholder="github_pat_...">
+      </div>
+      <p id="modal-status" class="status"></p>
+      <button id="btn-modal-update">更新</button>
+      <button class="secondary" id="btn-modal-close">閉じる</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    "use strict";
+
+    // ---- Config ----------------------------------------------------------
+    const LS_TOKEN = "gh_access_token";
+    const LS_USERNAME = "gh_username";
+    const LS_REPO = "gh_repo";
+    const LS_EXPIRY = "gh_token_expiry";
+    const DEFAULT_REPO_NAME = "research-paper-notes";
+    const GH_API = "https://api.github.com";
+
+    // ---- Screen helpers --------------------------------------------------
+    // #screen-login lives inside #auth-view (the centered card); the other
+    // screens are their own full-width views. show() toggles the container.
+    const authView = document.getElementById("auth-view");
+    const listView = document.getElementById("screen-list");
+    const detailView = document.getElementById("screen-detail");
+    const settingsView = document.getElementById("screen-settings");
+    function show(name) {
+      authView.classList.toggle("hidden", name !== "login");
+      listView.classList.toggle("hidden", name !== "list");
+      detailView.classList.toggle("hidden", name !== "detail");
+      settingsView.classList.toggle("hidden", name !== "settings");
+    }
+    function setStatus(el, message, kind) {
+      el.textContent = message || "";
+      el.className = "status" + (kind ? " " + kind : "");
+    }
+
+    const loginStatus = document.getElementById("login-status");
+
+    // ---- Auth: Personal Access Token (SPEC §6.2) -------------------------
+    function authHeaders(token) {
+      return {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+    }
+
+    // Persist the token's expiry from the response header (fine-grained PATs
+    // only; tokens without an expiry omit it). SETTINGS uses it to show the
+    // remaining days. Readable only if GitHub CORS-exposes the header.
+    function captureExpiry(resp) {
+      let exp = null;
+      try { exp = resp.headers.get("github-authentication-token-expiration"); } catch (_) { /* opaque */ }
+      if (exp) localStorage.setItem(LS_EXPIRY, exp);
+      else localStorage.removeItem(LS_EXPIRY);
+    }
+
+    // GitHub sends e.g. "2026-01-31 09:00:00 UTC"; normalize so Date() parses
+    // it on every browser (Safari chokes on the raw form).
+    function parseExpiry(raw) {
+      if (!raw) return null;
+      const d = new Date(raw.trim().replace(" UTC", "Z").replace(" ", "T"));
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Verify a token via GET /user (validity + username). Also captures the
+    // expiry header. Returns { ok, login, error }.
+    async function verifyToken(token) {
+      try {
+        const resp = await fetch(GH_API + "/user", { headers: authHeaders(token) });
+        captureExpiry(resp);
+        if (resp.status === 401) return { ok: false, error: "トークンが無効です" };
+        if (!resp.ok) return { ok: false, error: `HTTP ${resp.status}` };
+        const user = await resp.json();
+        return { ok: true, login: user.login };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    // Confirm the token can reach the target repository (SPEC §6.2 Step 3).
+    // Hits the repo endpoint so an empty papers/ folder isn't a false negative.
+    async function verifyRepo(token, repo) {
+      try {
+        const resp = await fetch(`${GH_API}/repos/${repo}`, { headers: authHeaders(token) });
+        captureExpiry(resp);
+        if (resp.status === 404) return { ok: false, error: "リポジトリが見つかりません（名前、またはPATの対象リポジトリ選択を確認）" };
+        if (resp.status === 403) return { ok: false, error: "権限が不足しています（Contents権限を確認）" };
+        if (!resp.ok) return { ok: false, error: `HTTP ${resp.status}` };
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    const patInput = document.getElementById("pat-input");
+    const connectBtn = document.getElementById("btn-connect");
+
+    // AUTH: validate token + repo reachability, then persist and enter LIST.
+    async function connect() {
+      const token = patInput.value.trim();
+      if (!token) { setStatus(loginStatus, "トークンを入力してください", "error"); return; }
+      connectBtn.disabled = true;
+      setStatus(loginStatus, "確認中…");
+
+      const u = await verifyToken(token);
+      if (!u.ok) { setStatus(loginStatus, "接続に失敗しました: " + u.error, "error"); connectBtn.disabled = false; return; }
+
+      const repo = `${u.login}/${DEFAULT_REPO_NAME}`;
+      const r = await verifyRepo(token, repo);
+      if (!r.ok) { setStatus(loginStatus, "リポジトリに接続できません: " + r.error, "error"); connectBtn.disabled = false; return; }
+
+      localStorage.setItem(LS_TOKEN, token);
+      localStorage.setItem(LS_USERNAME, u.login);
+      localStorage.setItem(LS_REPO, repo);
+      patInput.value = "";
+      connectBtn.disabled = false;
+      setStatus(loginStatus, "");
+      enterList();
+    }
+
+    function backToLogin(message, kind) {
+      connectBtn.disabled = false;
+      show("login");
+      setStatus(loginStatus, message, kind);
+    }
+
+    function logout(message, kind) {
+      localStorage.removeItem(LS_TOKEN);
+      localStorage.removeItem(LS_USERNAME);
+      localStorage.removeItem(LS_REPO);
+      localStorage.removeItem(LS_EXPIRY);
+      clearPaperCache();
+      papers = [];
+      activeTags.clear();
+      backToLogin(message || "", kind || null);
+    }
+
+    // ====================================================================
+    // LIST screen
+    // ====================================================================
+    const listContent = document.getElementById("list-content");
+    const tagFilter = document.getElementById("tag-filter");
+
+    let papers = [];          // parsed paper models
+    const activeTags = new Set();
+
+    const PAPER_CACHE_PREFIX = "paper_cache_";
+    function paperCacheKey(sha) { return PAPER_CACHE_PREFIX + sha; }
+
+    // Remove every cached paper (used on logout).
+    function clearPaperCache() {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith(PAPER_CACHE_PREFIX)) localStorage.removeItem(k);
+      }
+    }
+
+    // Drop cache entries whose SHA is no longer among the current papers, so
+    // stale copies left by content changes (a new SHA) don't pile up.
+    function prunePaperCache(validShas) {
+      const keep = new Set(validShas.map(paperCacheKey));
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith(PAPER_CACHE_PREFIX) && !keep.has(k)) localStorage.removeItem(k);
+      }
+    }
+
+    // Authenticated GitHub API fetch. Centralizes headers, expiry capture, and
+    // 401 handling. By default a 401 logs the user out (list/fetch path, SPEC
+    // §10.2 case A); pass { autoLogout: false } for the memo-save path (case B)
+    // so the caller can preserve unsaved work and prompt a token update.
+    async function ghFetch(path, opts = {}, { autoLogout = true } = {}) {
+      const token = localStorage.getItem(LS_TOKEN);
+      const resp = await fetch(GH_API + path, {
+        ...opts,
+        headers: { ...authHeaders(token), ...(opts.headers || {}) },
+      });
+      captureExpiry(resp);
+      if (resp.status === 401) {
+        if (autoLogout) logout("セッションが切れました。再ログインしてください。", "error");
+        throw new Error("unauthorized");
+      }
+      return resp;
+    }
+
+    // Decode base64 file content from the GitHub contents API as UTF-8
+    // (paper notes are Japanese, so plain atob() would mangle them).
+    function decodeGitHubContent(base64) {
+      const bytes = atob(base64.replace(/\n/g, ""));
+      let escaped = "";
+      for (let i = 0; i < bytes.length; i++) {
+        escaped += "%" + bytes.charCodeAt(i).toString(16).padStart(2, "0");
+      }
+      return decodeURIComponent(escaped);
+    }
+
+    // Minimal frontmatter parser (SPEC §5.7) — no external YAML lib.
+    function parseFrontmatter(md) {
+      const fm = { title: "", authors: "", venue: "", published: "", added: "", url: "", pdf_url: "", tags: [] };
+      const match = md.match(/^---\n([\s\S]*?)\n---/);
+      if (!match) return fm;
+      for (const line of match[1].split("\n")) {
+        const idx = line.indexOf(":");
+        if (idx === -1) continue;
+        const key = line.slice(0, idx).trim();
+        let value = line.slice(idx + 1).trim();
+        if (!(key in fm)) continue;
+        if (key === "tags") {
+          const inner = value.replace(/^\[/, "").replace(/\]$/, "").trim();
+          fm.tags = inner ? inner.split(",").map(t => t.trim().replace(/^["']|["']$/g, "")).filter(Boolean) : [];
+        } else {
+          fm[key] = value.replace(/^["']|["']$/g, "");
+        }
+      }
+      return fm;
+    }
+
+    // Run async fn over items with at most `limit` in flight.
+    async function mapLimit(items, limit, fn) {
+      const results = new Array(items.length);
+      let next = 0;
+      async function worker() {
+        while (next < items.length) {
+          const i = next++;
+          results[i] = await fn(items[i], i);
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+      return results;
+    }
+
+    // Resolve a file's markdown: read-through cache keyed by immutable SHA.
+    async function loadMarkdown(entry, repo) {
+      const cached = localStorage.getItem(paperCacheKey(entry.sha));
+      if (cached !== null) return cached;
+      const resp = await ghFetch(`/repos/${repo}/contents/papers/${encodeURIComponent(entry.name)}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      const md = decodeGitHubContent(data.content);
+      try { localStorage.setItem(paperCacheKey(entry.sha), md); } catch (_) { /* quota */ }
+      return md;
+    }
+
+    function setListMessage(html, kind) {
+      tagFilter.classList.add("hidden");
+      listContent.innerHTML = `<div class="list-message${kind ? " " + kind : ""}">${html}</div>`;
+    }
+
+    async function loadPapers() {
+      const repo = localStorage.getItem(LS_REPO);
+      document.getElementById("list-who").textContent = localStorage.getItem(LS_USERNAME) || "";
+      document.getElementById("btn-refresh").disabled = true;
+      setListMessage("読み込み中…");
+      try {
+        const resp = await ghFetch(`/repos/${repo}/contents/papers`);
+        if (resp.status === 404) {
+          // 404 is ambiguous: an empty papers/ folder, or an unreachable repo
+          // (wrong name / PAT not granting it). Disambiguate via the repo root.
+          const repoResp = await ghFetch(`/repos/${repo}`);
+          if (repoResp.ok) { papers = []; renderList(); return; } // repo OK, no papers yet
+          setListMessage(
+            `リポジトリ「${repo}」に接続できません。<br>名前、またはPATの対象リポジトリ選択を「設定」で確認してください。`,
+            "error"
+          );
+          return;
+        }
+        if (resp.status === 403) {
+          setListMessage(
+            `リポジトリ「${repo}」の権限が不足しています（Contents権限を確認）。`,
+            "error"
+          );
+          return;
+        }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const entries = (await resp.json())
+          .filter(e => e.type === "file" && e.name.endsWith(".md"));
+
+        prunePaperCache(entries.map(e => e.sha));
+
+        papers = await mapLimit(entries, 5, async (entry) => {
+          try {
+            const md = await loadMarkdown(entry, repo);
+            return { name: entry.name, sha: entry.sha, ...parseFrontmatter(md) };
+          } catch (err) {
+            return { name: entry.name, sha: entry.sha, broken: true, error: err.message, tags: [] };
+          }
+        });
+
+        // Sort by `added` (desc); newest first, tie-break by filename.
+        papers.sort((a, b) => (b.added || "").localeCompare(a.added || "") || a.name.localeCompare(b.name));
+        renderList();
+      } catch (err) {
+        if (err.message === "unauthorized") return; // logout() already ran
+        setListMessage(
+          `読み込みに失敗しました: ${err.message}<br><button class="icon-btn" onclick="loadPapers()">再読み込み</button>`,
+          "error"
+        );
+      } finally {
+        document.getElementById("btn-refresh").disabled = false;
+      }
+    }
+
+    function renderTagFilter() {
+      const all = [...new Set(papers.flatMap(p => p.tags || []))].sort();
+      if (all.length === 0) { tagFilter.classList.add("hidden"); tagFilter.innerHTML = ""; return; }
+      tagFilter.classList.remove("hidden");
+      tagFilter.innerHTML = "";
+      for (const tag of all) {
+        const chip = document.createElement("button");
+        chip.className = "chip" + (activeTags.has(tag) ? " active" : "");
+        chip.textContent = tag;
+        chip.addEventListener("click", () => {
+          if (activeTags.has(tag)) activeTags.delete(tag); else activeTags.add(tag);
+          renderList();
+        });
+        tagFilter.appendChild(chip);
+      }
+    }
+
+    function renderList() {
+      if (papers.length === 0) {
+        setListMessage("論文がありません。<br>add_paper.py で追加すると、ここに表示されます。");
+        return;
+      }
+      renderTagFilter();
+      const visible = papers.filter(p => [...activeTags].every(t => (p.tags || []).includes(t)));
+      listContent.innerHTML = "";
+      if (visible.length === 0) {
+        const msg = document.createElement("div");
+        msg.className = "list-message";
+        msg.textContent = "選択したタグに一致する論文がありません。";
+        listContent.appendChild(msg);
+        return;
+      }
+      for (const p of visible) listContent.appendChild(renderCard(p));
+    }
+
+    function renderCard(p) {
+      const card = document.createElement("button");
+      card.className = "paper-card" + (p.broken ? " broken" : "");
+      const h2 = document.createElement("h2");
+      h2.textContent = p.broken ? p.name : (p.title || p.name);
+      card.appendChild(h2);
+
+      const authors = document.createElement("p");
+      authors.className = "authors";
+      authors.textContent = p.broken ? ("読み込みエラー: " + p.error) : (p.authors || "");
+      card.appendChild(authors);
+
+      if (!p.broken) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        if (p.venue) meta.appendChild(spanEl("venue", p.venue));
+        if (p.published) meta.appendChild(spanEl("published", p.published));
+        card.appendChild(meta);
+
+        if ((p.tags || []).length) {
+          const pills = document.createElement("div");
+          pills.className = "pills";
+          for (const t of p.tags) pills.appendChild(spanEl("pill", t));
+          card.appendChild(pills);
+        }
+      }
+
+      card.addEventListener("click", () => openDetail(p));
+      return card;
+    }
+
+    function spanEl(cls, text) {
+      const s = document.createElement("span");
+      s.className = cls;
+      s.textContent = text;
+      return s;
+    }
+
+    function enterList() {
+      show("list");
+      loadPapers();
+    }
+
+    // ====================================================================
+    // DETAIL screen
+    // ====================================================================
+    const MEMO_HEADING = "メモ";
+    const detailBody = document.getElementById("detail-body");
+    let currentPaper = null;   // { name, sha, ... } of the open paper
+    let memoBaseline = "";     // last-saved memo text, for unsaved-change checks
+
+    // True when the memo textarea differs from what's saved (SPEC §5.3).
+    function isMemoDirty() {
+      const ta = document.getElementById("memo-input");
+      return !!currentPaper && !!ta && ta.value !== memoBaseline;
+    }
+
+    // Split the markdown body (after frontmatter) into the bibtex block and
+    // the `## `-delimited sections (SPEC §5.7).
+    function parseMarkdown(md) {
+      const body = md.replace(/^---\n[\s\S]*?\n---\n?/, "");
+      const bibtexMatch = body.match(/```bibtex\s*\n([\s\S]*?)```/);
+      const bibtex = bibtexMatch ? bibtexMatch[1].trim() : "";
+
+      const withoutBibtex = body.replace(/```bibtex\s*\n[\s\S]*?```/, "");
+      const parts = withoutBibtex.split(/^##[ \t]+(.+?)[ \t]*$/m);
+      // parts[0] is any preamble; then [heading, content, heading, content, ...]
+      const sections = [];
+      for (let i = 1; i < parts.length; i += 2) {
+        sections.push({ heading: parts[i].trim(), body: (parts[i + 1] || "").trim() });
+      }
+      return { bibtex, sections };
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    // Minimal inline markdown on already-escaped text: **bold** and `code`.
+    function renderInline(escaped) {
+      return escaped
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>");
+    }
+
+    // Minimal block markdown (SPEC §5.7): `- ` lists, `> ` blockquotes, else paragraphs.
+    function renderSectionBody(text) {
+      const lines = text.split("\n");
+      let html = "";
+      let list = [];
+      let quote = [];
+      let para = [];
+      const flushList = () => { if (list.length) { html += "<ul>" + list.map(li => `<li>${renderInline(escapeHtml(li))}</li>`).join("") + "</ul>"; list = []; } };
+      const flushQuote = () => { if (quote.length) { html += `<blockquote>${quote.map(q => renderInline(escapeHtml(q))).join("<br>")}</blockquote>`; quote = []; } };
+      const flushPara = () => { if (para.length) { html += `<p>${para.map(l => renderInline(escapeHtml(l))).join("<br>")}</p>`; para = []; } };
+      const flushAll = () => { flushList(); flushQuote(); flushPara(); };
+
+      for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (line.trim() === "") { flushAll(); continue; }
+        if (/^-\s+/.test(line)) { flushQuote(); flushPara(); list.push(line.replace(/^-\s+/, "")); }
+        else if (/^>\s?/.test(line)) { flushList(); flushPara(); quote.push(line.replace(/^>\s?/, "")); }
+        else { flushList(); flushQuote(); para.push(line); }
+      }
+      flushAll();
+      return html;
+    }
+
+    function sanitize(html) {
+      return window.DOMPurify ? DOMPurify.sanitize(html) : escapeHtml(html);
+    }
+
+    // Resolve the paper's markdown (cache-first) and render the DETAIL screen.
+    async function openDetail(p) {
+      currentPaper = p;
+      show("detail");
+      detailBody.innerHTML = `<div class="list-message">読み込み中…</div>`;
+      detailView.scrollTop = 0;
+      window.scrollTo(0, 0);
+      let md;
+      try {
+        md = await loadMarkdown(p, localStorage.getItem(LS_REPO));
+      } catch (err) {
+        if (err.message === "unauthorized") return;
+        detailBody.innerHTML = `<div class="list-message error">読み込みに失敗しました: ${escapeHtml(err.message)}</div>`;
+        return;
+      }
+      renderDetail(p, md);
+    }
+
+    function renderDetail(p, md) {
+      const fm = parseFrontmatter(md);
+      const { bibtex, sections } = parseMarkdown(md);
+      detailBody.innerHTML = "";
+
+      // Header: title / authors / meta (venue, published, tags).
+      const h1 = document.createElement("h1");
+      h1.className = "detail-title";
+      h1.textContent = fm.title || p.name;
+      detailBody.appendChild(h1);
+
+      if (fm.authors) {
+        const au = document.createElement("p");
+        au.className = "detail-authors";
+        au.textContent = fm.authors;
+        detailBody.appendChild(au);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "detail-meta";
+      if (fm.venue) meta.appendChild(spanEl("venue", fm.venue));
+      if (fm.published) meta.appendChild(spanEl("published", fm.published));
+      for (const t of fm.tags || []) meta.appendChild(spanEl("pill", t));
+      detailBody.appendChild(meta);
+
+      // PDF button (opens original PDF in a new tab).
+      if (fm.pdf_url) {
+        const pdf = document.createElement("button");
+        pdf.className = "pdf-btn";
+        pdf.textContent = "PDFを開く";
+        pdf.addEventListener("click", () => window.open(fm.pdf_url, "_blank", "noopener"));
+        detailBody.appendChild(pdf);
+      }
+
+      // Accordion sections (all except メモ), in file order.
+      let memoBody = "";
+      for (const sec of sections) {
+        if (sec.heading === MEMO_HEADING) { memoBody = sec.body; continue; }
+        detailBody.appendChild(renderAccordion(sec.heading, renderSectionBody(sec.body)));
+      }
+
+      // bibtex accordion with a copy button.
+      if (bibtex) detailBody.appendChild(renderBibtex(bibtex));
+
+      // Memo: always expanded, editable, with save.
+      detailBody.appendChild(renderMemo(memoBody));
+    }
+
+    function renderAccordion(heading, innerHtml) {
+      const d = document.createElement("details");
+      d.className = "section";
+      d.open = true;
+      const s = document.createElement("summary");
+      s.textContent = heading;
+      d.appendChild(s);
+      const c = document.createElement("div");
+      c.className = "section-content";
+      c.innerHTML = sanitize(innerHtml);
+      d.appendChild(c);
+      return d;
+    }
+
+    function renderBibtex(bibtex) {
+      const d = document.createElement("details");
+      d.className = "section";
+      const s = document.createElement("summary");
+      s.textContent = "bibtex";
+      d.appendChild(s);
+      const c = document.createElement("div");
+      c.className = "section-content";
+      const pre = document.createElement("pre");
+      pre.className = "bibtex-pre";
+      pre.textContent = bibtex;
+      const copy = document.createElement("button");
+      copy.className = "copy-btn";
+      copy.textContent = "コピー";
+      copy.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(bibtex); toast("bibtexをコピーしました", "success"); }
+        catch (_) { toast("コピーに失敗しました", "error"); }
+      });
+      c.appendChild(pre);
+      c.appendChild(copy);
+      d.appendChild(c);
+      return d;
+    }
+
+    // Strip the template placeholder comment so the textarea starts clean.
+    function cleanMemo(body) {
+      return body.replace(/<!--[\s\S]*?-->/g, "").trim();
+    }
+
+    function renderMemo(memoBody) {
+      const block = document.createElement("div");
+      block.className = "memo-block";
+      const h3 = document.createElement("h3");
+      h3.textContent = "メモ";
+      const ta = document.createElement("textarea");
+      ta.id = "memo-input";
+      ta.value = cleanMemo(memoBody);
+      ta.placeholder = "この論文についてのメモ（Markdown可）";
+      const save = document.createElement("button");
+      save.className = "save-btn";
+      save.textContent = "保存";
+
+      // Enable "保存" only when the text differs from the saved baseline.
+      memoBaseline = ta.value;
+      save.disabled = true;
+      ta.addEventListener("input", () => { save.disabled = ta.value === memoBaseline; });
+      save.addEventListener("click", async () => {
+        const saved = await saveMemo(save, ta.value);
+        if (saved) { memoBaseline = ta.value; save.disabled = true; }
+      });
+
+      block.appendChild(h3);
+      block.appendChild(ta);
+      block.appendChild(save);
+      return block;
+    }
+
+    // Encode a UTF-8 string to base64 (reverse of decodeGitHubContent).
+    function encodeGitHubContent(str) {
+      const utf8 = encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+      return btoa(utf8);
+    }
+
+    // Replace the `## メモ` section (or append it) with new content.
+    function replaceMemoSection(md, memoText) {
+      const block = `## ${MEMO_HEADING}\n\n${memoText.trim()}\n`;
+      const re = new RegExp(`^##[ \\t]+${MEMO_HEADING}[ \\t]*$[\\s\\S]*`, "m");
+      if (re.test(md)) return md.replace(re, block);
+      return md.replace(/\s*$/, "\n\n") + block;
+    }
+
+    // Save the memo back to GitHub (SPEC §7.3): re-fetch latest content+sha,
+    // splice in the new memo, PUT the whole file, refresh the cache.
+    async function saveMemo(button, memoText) {
+      if (!currentPaper) return false;
+      const repo = localStorage.getItem(LS_REPO);
+      const path = `/repos/${repo}/contents/papers/${encodeURIComponent(currentPaper.name)}`;
+      button.disabled = true;
+      const label = button.textContent;
+      button.textContent = "保存中…";
+      try {
+        const getResp = await ghFetch(path, {}, { autoLogout: false });
+        if (!getResp.ok) throw new Error(`取得失敗 HTTP ${getResp.status}`);
+        const file = await getResp.json();
+        const currentMd = decodeGitHubContent(file.content);
+        const newMd = replaceMemoSection(currentMd, memoText);
+
+        const putResp = await ghFetch(path, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `memo: update ${currentPaper.name}`,
+            content: encodeGitHubContent(newMd),
+            sha: file.sha,
+          }),
+        }, { autoLogout: false });
+        if (!putResp.ok) {
+          const detail = await putResp.json().catch(() => ({}));
+          throw new Error(detail.message || `HTTP ${putResp.status}`);
+        }
+        const put = await putResp.json();
+        const newSha = put.content && put.content.sha;
+        // Refresh cache: drop the stale entry, store under the new SHA.
+        try {
+          localStorage.removeItem(paperCacheKey(currentPaper.sha));
+          if (newSha) localStorage.setItem(paperCacheKey(newSha), newMd);
+        } catch (_) { /* quota */ }
+        if (newSha) {
+          currentPaper.sha = newSha;
+          const inList = papers.find(x => x.name === currentPaper.name);
+          if (inList) inList.sha = newSha;
+        }
+        toast("保存しました", "success");
+        return true;
+      } catch (err) {
+        // Token expired mid-save: keep the draft, prompt an inline token
+        // update (SPEC §5.3 DETAIL / §10.2 case B) so nothing is lost.
+        if (err.message === "unauthorized") { openTokenModal(); return false; }
+        toast("保存に失敗しました: " + err.message, "error");
+        return false;
+      } finally {
+        // Re-enable on failure so the user can retry; on success the click
+        // handler disables it again once the baseline is updated.
+        button.disabled = false;
+        button.textContent = label;
+      }
+    }
+
+    let toastTimer = null;
+    function toast(message, kind) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.className = "toast show" + (kind ? " " + kind : "");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = "toast" + (kind ? " " + kind : ""); }, 2600);
+    }
+
+    // ====================================================================
+    // Token-expired modal (memo-save path, SPEC §5.3 / §10.2 case B)
+    // ====================================================================
+    const tokenModal = document.getElementById("token-modal");
+    const modalTokenInput = document.getElementById("modal-token");
+    const modalStatus = document.getElementById("modal-status");
+
+    function openTokenModal() {
+      modalTokenInput.value = "";
+      setStatus(modalStatus, "");
+      tokenModal.classList.remove("hidden");
+      modalTokenInput.focus();
+    }
+    function closeTokenModal() {
+      tokenModal.classList.add("hidden");
+    }
+
+    // Update the token in place (no navigation) so the draft memo survives;
+    // the user just presses 保存 again afterwards.
+    async function updateTokenFromModal() {
+      const token = modalTokenInput.value.trim();
+      if (!token) { setStatus(modalStatus, "トークンを入力してください", "error"); return; }
+      setStatus(modalStatus, "確認中…");
+      const res = await verifyToken(token);
+      if (!res.ok) { setStatus(modalStatus, res.error, "error"); return; }
+      localStorage.setItem(LS_TOKEN, token);
+      localStorage.setItem(LS_USERNAME, res.login);
+      closeTokenModal();
+      toast("トークンを更新しました。もう一度「保存」を押してください", "success");
+    }
+
+    // ====================================================================
+    // SETTINGS screen
+    // ====================================================================
+    const repoInput = document.getElementById("settings-repo");
+    const repoSaveBtn = document.getElementById("btn-repo-save");
+    const tokenInput = document.getElementById("settings-token");
+    const tokenSaveBtn = document.getElementById("btn-token-save");
+    let repoBaseline = "";
+
+    function openSettings() {
+      document.getElementById("settings-user").textContent = localStorage.getItem(LS_USERNAME) || "";
+      repoBaseline = localStorage.getItem(LS_REPO) || "";
+      repoInput.value = repoBaseline;
+      repoSaveBtn.disabled = true;
+      tokenInput.value = "";
+      renderTokenLabel();
+      show("settings");
+    }
+
+    // Annotate the "トークンを更新" label with remaining days when known
+    // (SPEC §5.3 SETTINGS). The expiry header is often not CORS-readable, in
+    // which case we simply show the plain label.
+    function renderTokenLabel() {
+      const el = document.getElementById("settings-token-label");
+      const d = parseExpiry(localStorage.getItem(LS_EXPIRY));
+      if (!d) { el.textContent = "トークンを更新"; return; }
+      const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+      el.textContent = days >= 0 ? `トークンを更新（${days}日で失効）` : "トークンを更新（失効済み）";
+    }
+
+    repoInput.addEventListener("input", () => {
+      repoSaveBtn.disabled = repoInput.value.trim() === repoBaseline;
+    });
+
+    repoSaveBtn.addEventListener("click", () => {
+      const repo = repoInput.value.trim();
+      if (!/^[^/\s]+\/[^/\s]+$/.test(repo)) {
+        toast("owner/repo の形式で入力してください", "error");
+        return;
+      }
+      localStorage.setItem(LS_REPO, repo);
+      repoBaseline = repo;
+      repoSaveBtn.disabled = true;
+      // Repo changed: the current list is stale — reload it (updates the
+      // hidden LIST view so it's ready when the user navigates back).
+      papers = [];
+      activeTags.clear();
+      loadPapers();
+      toast("リポジトリを変更しました", "success");
+    });
+
+    // Replace the stored token from SETTINGS (e.g. after expiry/rotation).
+    tokenSaveBtn.addEventListener("click", async () => {
+      const token = tokenInput.value.trim();
+      if (!token) { toast("トークンを入力してください", "error"); return; }
+      tokenSaveBtn.disabled = true;
+      const res = await verifyToken(token);
+      if (!res.ok) { toast("トークン更新に失敗しました: " + res.error, "error"); tokenSaveBtn.disabled = false; return; }
+      localStorage.setItem(LS_TOKEN, token);
+      localStorage.setItem(LS_USERNAME, res.login);
+      tokenInput.value = "";
+      tokenSaveBtn.disabled = false;
+      document.getElementById("settings-user").textContent = res.login;
+      renderTokenLabel();
+      toast("トークンを更新しました", "success");
+    });
+
+    // Warn on tab close / reload when the memo has unsaved changes
+    // (complements the in-app "← 一覧" guard).
+    window.addEventListener("beforeunload", (e) => {
+      if (isMemoDirty()) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    // ---- Wire up ---------------------------------------------------------
+    connectBtn.addEventListener("click", connect);
+    patInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+    document.getElementById("btn-modal-update").addEventListener("click", updateTokenFromModal);
+    document.getElementById("btn-modal-close").addEventListener("click", closeTokenModal);
+    document.getElementById("btn-refresh").addEventListener("click", loadPapers);
+    document.getElementById("btn-back").addEventListener("click", () => {
+      if (isMemoDirty() && !window.confirm("保存していないメモがあります。破棄して一覧に戻りますか？")) return;
+      currentPaper = null;
+      show("list");
+    });
+    document.getElementById("btn-settings").addEventListener("click", openSettings);
+    document.getElementById("btn-settings-back").addEventListener("click", () => show("list"));
+    document.getElementById("btn-settings-logout").addEventListener("click", () => logout());
+
+    // Step 1: skip login if already authenticated.
+    if (localStorage.getItem(LS_TOKEN)) {
+      enterList();
+    } else {
+      show("login");
+    }
+  </script>
+
+  <script>
+    // Register the service worker for installability + offline app shell.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => { /* non-fatal */ });
+      });
+    }
+  </script>
+</body>
+</html>
