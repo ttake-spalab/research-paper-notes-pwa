@@ -4,7 +4,7 @@
 // script are handled here.
 "use strict";
 
-const CACHE = "paper-reader-v1";
+const CACHE = "papershelf-v1";
 const DOMPURIFY = "https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js";
 const CORE = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 

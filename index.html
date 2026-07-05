@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>PaperShelf</title>
-  <meta name="theme-color" content="#6e57e0">
+  <meta name="theme-color" content="#84a0c6">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,15 +12,18 @@
   <meta name="apple-mobile-web-app-title" content="PaperShelf">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
   <style>
+    /* Color palette adapted from Iceberg by cocopon (MIT) — https://github.com/cocopon/iceberg.vim */
     :root {
-      --bg: #0f1117;
-      --surface: #191c26;
-      --accent: #6e57e0;
-      --accent-hover: #7d68ea;
-      --text: #e7e9f0;
-      --muted: #9aa0b4;
-      --error: #ff6b7a;
-      --success: #5bd6a0;
+      --bg: #161821;
+      --surface: #1e2132;
+      --accent: #84a0c6;
+      --accent-hover: #98b0d0;
+      --text: #c6c8d1;
+      --muted: #6b7089;
+      --error: #e27878;
+      --success: #b4be82;
+      --status-skim: #e2a478;
+      --status-read: #b4be82;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -56,7 +59,7 @@
       border-radius: 12px;
       padding: 0.85rem 1.25rem;
       width: 100%;
-      color: #fff;
+      color: #161821;
       background: var(--accent);
       transition: background 0.15s ease;
     }
@@ -64,11 +67,11 @@
     button:disabled { opacity: 0.55; cursor: default; }
     button.secondary {
       background: transparent;
-      border: 1px solid #333849;
+      border: 1px solid #363c52;
       color: var(--muted);
       margin-top: 0.75rem;
     }
-    button.secondary:hover:not(:disabled) { background: #21252f; }
+    button.secondary:hover:not(:disabled) { background: #242a3f; }
     .status { color: var(--muted); font-size: 0.9rem; min-height: 1.2em; margin-top: 0.5rem; }
     .status.error { color: var(--error); }
     .status.success { color: var(--success); }
@@ -93,9 +96,9 @@
       align-items: center;
       gap: 0.75rem;
       padding: calc(env(safe-area-inset-top) + 0.85rem) 1rem 0.85rem;
-      background: rgba(15, 17, 23, 0.9);
+      background: rgba(22, 24, 33, 0.9);
       backdrop-filter: blur(8px);
-      border-bottom: 1px solid #21252f;
+      border-bottom: 1px solid #242a3f;
     }
     .list-header .title { font-size: 1.1rem; font-weight: 700; margin: 0; }
     .list-header .who { color: var(--muted); font-size: 0.82rem; margin-right: auto; }
@@ -104,11 +107,11 @@
       padding: 0.5rem 0.85rem;
       font-size: 0.85rem;
       background: transparent;
-      border: 1px solid #333849;
+      border: 1px solid #363c52;
       color: var(--text);
       border-radius: 10px;
     }
-    .icon-btn:hover:not(:disabled) { background: #21252f; }
+    .icon-btn:hover:not(:disabled) { background: #242a3f; }
     .list-body {
       flex: 1;
       width: 100%;
@@ -126,24 +129,24 @@
       font-size: 0.78rem;
       padding: 0.3rem 0.7rem;
       border-radius: 999px;
-      border: 1px solid #333849;
+      border: 1px solid #363c52;
       background: transparent;
       color: var(--muted);
       cursor: pointer;
       width: auto;
     }
-    .chip:hover:not(:disabled) { background: #21252f; }
+    .chip:hover:not(:disabled) { background: #242a3f; }
     .chip.active {
       background: var(--accent);
       border-color: var(--accent);
-      color: #fff;
+      color: #161821;
     }
     .paper-card {
       display: block;
       width: 100%;
       text-align: left;
       background: var(--surface);
-      border: 1px solid #21252f;
+      border: 1px solid #242a3f;
       border-radius: 14px;
       padding: 1rem 1.1rem;
       margin-bottom: 0.75rem;
@@ -152,7 +155,7 @@
       font: inherit;
       transition: border-color 0.15s ease, transform 0.05s ease;
     }
-    .paper-card:hover { border-color: #3a3f52; }
+    .paper-card:hover:not(:disabled) { background: #242a3f; }
     .paper-card:active { transform: scale(0.995); }
     .paper-card h2 {
       font-size: 1.02rem;
@@ -181,8 +184,8 @@
       font-size: 0.72rem;
       padding: 0.15rem 0.55rem;
       border-radius: 999px;
-      background: #262a37;
-      color: #c3c8db;
+      background: #2a3047;
+      color: #c6c8d1;
     }
     .paper-card.broken { border-style: dashed; border-color: var(--error); }
     .paper-card.broken .authors { color: var(--error); }
@@ -194,6 +197,10 @@
     }
     .list-message.error { color: var(--error); }
     .list-message button { max-width: 240px; margin: 1rem auto 0; }
+    .status-dot { font-size: 0.95rem; line-height: 1; }
+    .status-unread  { color: var(--muted); }
+    .status-skimmed { color: var(--status-skim); }
+    .status-read    { color: var(--status-read); }
 
     /* ---- DETAIL screen ---- */
     #screen-detail {
@@ -209,9 +216,9 @@
       align-items: center;
       gap: 0.75rem;
       padding: calc(env(safe-area-inset-top) + 0.85rem) 1rem 0.85rem;
-      background: rgba(15, 17, 23, 0.9);
+      background: rgba(22, 24, 33, 0.9);
       backdrop-filter: blur(8px);
-      border-bottom: 1px solid #21252f;
+      border-bottom: 1px solid #242a3f;
     }
     .detail-header .back { width: auto; }
     .detail-body {
@@ -225,11 +232,30 @@
     .detail-authors { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; line-height: 1.5; }
     .detail-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 0.85rem; font-size: 0.82rem; color: var(--muted); align-items: center; }
     .detail-meta .venue { color: var(--accent); font-weight: 600; }
-    .detail-meta .pill { font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #262a37; color: #c3c8db; }
+    .detail-meta .pill { font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #2a3047; color: #c6c8d1; }
     .pdf-btn { width: auto; margin: 1rem 0 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.9rem; }
 
+    .status-control { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1rem 0 0.25rem; }
+    .status-control .status-opt {
+      width: auto;
+      font-size: 0.82rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid #363c52;
+      background: transparent;
+      color: var(--muted);
+    }
+    .status-control .status-opt:hover:not(:disabled) { background: #242a3f; }
+    .status-control .status-opt.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #161821;
+      font-weight: 600;
+    }
+    .status-control .status-opt:disabled { opacity: 0.55; }
+
     details.section {
-      border: 1px solid #21252f;
+      border: 1px solid #242a3f;
       border-radius: 12px;
       margin-top: 0.75rem;
       background: var(--surface);
@@ -258,12 +284,12 @@
       border-left: 3px solid var(--accent);
       color: var(--muted);
     }
-    .section-content strong { color: #fff; }
+    .section-content strong { color: #161821; }
     .section-content code { font-size: 0.9em; }
 
     .bibtex-pre {
       background: var(--bg);
-      border: 1px solid #21252f;
+      border: 1px solid #242a3f;
       border-radius: 10px;
       padding: 0.9rem;
       overflow-x: auto;
@@ -290,7 +316,7 @@
       resize: vertical;
       background: var(--bg);
       color: var(--text);
-      border: 1px solid #333849;
+      border: 1px solid #363c52;
       border-radius: 10px;
       padding: 0.75rem;
       font: inherit;
@@ -303,7 +329,7 @@
       left: 50%;
       bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
       transform: translateX(-50%);
-      background: #262a37;
+      background: #2a3047;
       color: var(--text);
       padding: 0.7rem 1.2rem;
       border-radius: 10px;
@@ -315,8 +341,8 @@
       z-index: 20;
     }
     .toast.show { opacity: 1; }
-    .toast.error { background: #3a1d24; color: var(--error); }
-    .toast.success { background: #1d3a2d; color: var(--success); }
+    .toast.error { background: #3a2528; color: var(--error); }
+    .toast.success { background: #26332a; color: var(--success); }
 
     /* ---- SETTINGS screen ---- */
     #screen-settings {
@@ -330,7 +356,7 @@
       align-items: center;
       gap: 1rem;
       padding: 0.85rem 0;
-      border-bottom: 1px solid #21252f;
+      border-bottom: 1px solid #242a3f;
     }
     .settings-row .label { color: var(--muted); font-size: 0.9rem; }
     .settings-row .value { font-weight: 600; word-break: break-all; text-align: right; }
@@ -340,7 +366,7 @@
       width: 100%;
       background: var(--bg);
       color: var(--text);
-      border: 1px solid #333849;
+      border: 1px solid #363c52;
       border-radius: 10px;
       padding: 0.7rem;
       font: inherit;
@@ -352,7 +378,7 @@
       border: 1px solid var(--error);
       color: var(--error);
     }
-    .btn-danger:hover:not(:disabled) { background: rgba(255, 107, 122, 0.12); }
+    .btn-danger:hover:not(:disabled) { background: rgba(226, 120, 120, 0.14); }
 
     /* ---- Modal ---- */
     .modal-overlay {
@@ -653,7 +679,7 @@
 
     // Minimal frontmatter parser (SPEC §5.7) — no external YAML lib.
     function parseFrontmatter(md) {
-      const fm = { title: "", authors: "", venue: "", published: "", added: "", url: "", pdf_url: "", tags: [] };
+      const fm = { title: "", authors: "", venue: "", published: "", added: "", url: "", pdf_url: "", status: "", tags: [] };
       const match = md.match(/^---\n([\s\S]*?)\n---/);
       if (!match) return fm;
       for (const line of match[1].split("\n")) {
@@ -797,6 +823,15 @@
       card.className = "paper-card" + (p.broken ? " broken" : "");
       const h2 = document.createElement("h2");
       h2.textContent = p.broken ? p.name : (p.title || p.name);
+      if (!p.broken) {
+        const m = statusMeta(p.status);
+        const dot = document.createElement("span");
+        dot.className = "status-dot " + m.cls;
+        dot.textContent = m.char + " ";
+        dot.title = m.label;
+        dot.setAttribute("aria-label", m.label);
+        h2.prepend(dot);
+      }
       card.appendChild(h2);
 
       const authors = document.createElement("p");
@@ -830,8 +865,20 @@
       return s;
     }
 
+    // Read-status metadata (frontmatter `status`). Absent/unknown = unread.
+    const STATUS_ORDER = ["unread", "skimmed", "read"];
+    const STATUS_META = {
+      unread:  { char: "○", cls: "status-unread",  label: "未読" },
+      skimmed: { char: "◐", cls: "status-skimmed", label: "概要だけ読んだ" },
+      read:    { char: "●", cls: "status-read",    label: "本文を読んだ" },
+    };
+    function statusMeta(s) { return STATUS_META[s] || STATUS_META.unread; }
+
     function enterList() {
       show("list");
+      // Mark the current history entry as the list, so a Back from a pushed
+      // DETAIL/SETTINGS entry lands here (History API navigation).
+      history.replaceState({ screen: "list" }, "");
       loadPapers();
     }
 
@@ -906,9 +953,13 @@
     }
 
     // Resolve the paper's markdown (cache-first) and render the DETAIL screen.
-    async function openDetail(p) {
+    async function openDetail(p, { push = true } = {}) {
       currentPaper = p;
       show("detail");
+      // Push a history entry (carrying the paper name) so browser Back returns
+      // to the list and Forward re-opens this paper. popstate re-opens with
+      // push:false so it doesn't stack a duplicate entry.
+      if (push) history.pushState({ screen: "detail", name: p.name }, "");
       detailBody.innerHTML = `<div class="list-message">読み込み中…</div>`;
       detailView.scrollTop = 0;
       window.scrollTo(0, 0);
@@ -947,6 +998,9 @@
       if (fm.published) meta.appendChild(spanEl("published", fm.published));
       for (const t of fm.tags || []) meta.appendChild(spanEl("pill", t));
       detailBody.appendChild(meta);
+
+      // Read-status control (writes `status` frontmatter back to GitHub).
+      detailBody.appendChild(renderStatusControl(fm.status || "unread"));
 
       // PDF button (opens original PDF in a new tab).
       if (fm.pdf_url) {
@@ -1042,6 +1096,22 @@
       return block;
     }
 
+    // Segmented read-status control: 未読 / 概要だけ読んだ / 本文を読んだ.
+    function renderStatusControl(current) {
+      const wrap = document.createElement("div");
+      wrap.className = "status-control";
+      for (const key of STATUS_ORDER) {
+        const m = STATUS_META[key];
+        const btn = document.createElement("button");
+        btn.className = "status-opt" + (key === current ? " active" : "");
+        btn.dataset.status = key;
+        btn.textContent = m.char + " " + m.label;
+        btn.addEventListener("click", () => saveStatus(key, wrap));
+        wrap.appendChild(btn);
+      }
+      return wrap;
+    }
+
     // Encode a UTF-8 string to base64 (reverse of decodeGitHubContent).
     function encodeGitHubContent(str) {
       const utf8 = encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
@@ -1054,6 +1124,18 @@
       const re = new RegExp(`^##[ \\t]+${MEMO_HEADING}[ \\t]*$[\\s\\S]*`, "m");
       if (re.test(md)) return md.replace(re, block);
       return md.replace(/\s*$/, "\n\n") + block;
+    }
+
+    // Set (or insert) a single scalar `key: "value"` line inside the `---`
+    // frontmatter block. Function-form replaces avoid `$` interpretation.
+    function setFrontmatterField(md, key, value) {
+      const fmMatch = md.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) return md; // no frontmatter to edit
+      let block = fmMatch[1];
+      const line = `${key}: "${value}"`;
+      const re = new RegExp(`^${key}:.*$`, "m");
+      block = re.test(block) ? block.replace(re, () => line) : block + "\n" + line;
+      return md.replace(/^---\n[\s\S]*?\n---/, () => `---\n${block}\n---`);
     }
 
     // Save the memo back to GitHub (SPEC §7.3): re-fetch latest content+sha,
@@ -1113,6 +1195,57 @@
       }
     }
 
+    // Save read-status to GitHub: re-fetch latest content+sha, rewrite the
+    // `status` frontmatter field, PUT, refresh cache (mirrors saveMemo). Does
+    // not touch the memo textarea, so an unsaved memo draft is preserved.
+    async function saveStatus(value, control) {
+      if (!currentPaper) return;
+      const repo = localStorage.getItem(LS_REPO);
+      const path = `/repos/${repo}/contents/papers/${encodeURIComponent(currentPaper.name)}`;
+      const buttons = control.querySelectorAll(".status-opt");
+      buttons.forEach(b => (b.disabled = true));
+      try {
+        const getResp = await ghFetch(path, {}, { autoLogout: false });
+        if (!getResp.ok) throw new Error(`取得失敗 HTTP ${getResp.status}`);
+        const file = await getResp.json();
+        const currentMd = decodeGitHubContent(file.content);
+        const newMd = setFrontmatterField(currentMd, "status", value);
+
+        const putResp = await ghFetch(path, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `status: update ${currentPaper.name}`,
+            content: encodeGitHubContent(newMd),
+            sha: file.sha,
+          }),
+        }, { autoLogout: false });
+        if (!putResp.ok) {
+          const detail = await putResp.json().catch(() => ({}));
+          throw new Error(detail.message || `HTTP ${putResp.status}`);
+        }
+        const put = await putResp.json();
+        const newSha = put.content && put.content.sha;
+        try {
+          localStorage.removeItem(paperCacheKey(currentPaper.sha));
+          if (newSha) localStorage.setItem(paperCacheKey(newSha), newMd);
+        } catch (_) { /* quota */ }
+        if (newSha) currentPaper.sha = newSha;
+        currentPaper.status = value;
+        const inList = papers.find(x => x.name === currentPaper.name);
+        if (inList) { if (newSha) inList.sha = newSha; inList.status = value; }
+        // Reflect the new state in the control and refresh the list dots.
+        buttons.forEach(b => b.classList.toggle("active", b.dataset.status === value));
+        renderList();
+        toast("更新しました", "success");
+      } catch (err) {
+        if (err.message === "unauthorized") { openTokenModal(); return; }
+        toast("更新に失敗しました: " + err.message, "error");
+      } finally {
+        buttons.forEach(b => (b.disabled = false));
+      }
+    }
+
     let toastTimer = null;
     function toast(message, kind) {
       const el = document.getElementById("toast");
@@ -1162,7 +1295,7 @@
     const tokenSaveBtn = document.getElementById("btn-token-save");
     let repoBaseline = "";
 
-    function openSettings() {
+    function openSettings({ push = true } = {}) {
       document.getElementById("settings-user").textContent = localStorage.getItem(LS_USERNAME) || "";
       repoBaseline = localStorage.getItem(LS_REPO) || "";
       repoInput.value = repoBaseline;
@@ -1170,6 +1303,9 @@
       tokenInput.value = "";
       renderTokenLabel();
       show("settings");
+      // Push a history entry so browser Back / swipe returns to the list
+      // (push:false when re-entered via Forward).
+      if (push) history.pushState({ screen: "settings" }, "");
     }
 
     // Annotate the "トークンを更新" label with remaining days when known
@@ -1232,14 +1368,39 @@
     document.getElementById("btn-modal-update").addEventListener("click", updateTokenFromModal);
     document.getElementById("btn-modal-close").addEventListener("click", closeTokenModal);
     document.getElementById("btn-refresh").addEventListener("click", loadPapers);
-    document.getElementById("btn-back").addEventListener("click", () => {
-      if (isMemoDirty() && !window.confirm("保存していないメモがあります。破棄して一覧に戻りますか？")) return;
+    // The in-app back buttons just step browser history back, so the same
+    // popstate handler drives both taps and the browser Back button/swipe.
+    document.getElementById("btn-back").addEventListener("click", () => history.back());
+    document.getElementById("btn-settings").addEventListener("click", () => openSettings());
+    document.getElementById("btn-settings-back").addEventListener("click", () => history.back());
+    document.getElementById("btn-settings-logout").addEventListener("click", () => logout());
+
+    // Browser Back/Forward: DETAIL and SETTINGS are pushed history entries, so
+    // popping returns to the list and going Forward re-opens them. Guard the
+    // unsaved memo when leaving DETAIL.
+    window.addEventListener("popstate", (e) => {
+      if (!localStorage.getItem(LS_TOKEN)) { show("login"); return; }
+      const state = e.state || {};
+      const target = state.screen || "list";
+      const leavingDetail = !detailView.classList.contains("hidden") && target !== "detail";
+      if (leavingDetail && isMemoDirty() &&
+          !window.confirm("保存していないメモがあります。破棄して一覧に戻りますか？")) {
+        // Cancelled: re-push the DETAIL entry so the user stays put.
+        history.pushState({ screen: "detail", name: currentPaper && currentPaper.name }, "");
+        return;
+      }
+      if (target === "detail") {
+        // Forward into a paper: re-open it (by name) without pushing again.
+        const p = papers.find((x) => x.name === state.name);
+        if (p) { openDetail(p, { push: false }); return; }
+        // Paper no longer available (list reloaded/removed): fall back to list.
+      } else if (target === "settings") {
+        openSettings({ push: false });
+        return;
+      }
       currentPaper = null;
       show("list");
     });
-    document.getElementById("btn-settings").addEventListener("click", openSettings);
-    document.getElementById("btn-settings-back").addEventListener("click", () => show("list"));
-    document.getElementById("btn-settings-logout").addEventListener("click", () => logout());
 
     // Step 1: skip login if already authenticated.
     if (localStorage.getItem(LS_TOKEN)) {
